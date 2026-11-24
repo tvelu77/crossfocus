@@ -160,7 +160,7 @@ class MainActivity : AppCompatActivity() {
     private fun takeHdr() {
         val cam = camera ?: return
         workerExecutor.execute {
-            val baseIndex = cam.cameraInfo.exposureCompensationIndex
+            val baseIndex = cam.cameraInfo.exposureState.exposureCompensationIndex
             val frames = mutableListOf<File>()
             for (ev in HDR_EXPOSURES) {
                 cam.cameraControl.setExposureCompensationIndex(ev)
