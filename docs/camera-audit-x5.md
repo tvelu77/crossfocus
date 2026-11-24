@@ -65,9 +65,28 @@ YUV_420_888 sizes (16): max=2328x1748
 - `READ_SENSOR_SETTINGS` + `MANUAL_POST_PROCESSING` : métadonnées complètes.
 - ZSL (`CONTROL_ENABLE_ZSL`) non listé comme capability mais quasi certain sur LEVEL_3 + BURST_CAPTURE → à valider à l'exécution (cible : latence au clic < 200 ms).
 
+### Correspondance capteurs physiques ↔ IDs Camera2
+
+Le X5 embarque physiquement **3 capteurs** (fiche Crosscall / revendeurs) :
+- arrière : **Sony IMX766 50 MP** (f/1,8, OIS) + **ultra grand-angle Samsung 13 MP** (120°)
+- avant : **16 MP** avec binning Fusion4 (4 pixels → 1, soit des images finales de 4 MP — confirmé par la doc officielle Crosscall)
+
+Mais `CameraManager.cameraIdList` n'expose que **2 IDs** :
+- `camera 0` (back) = l'**IMX766 50 MP exposé en binning 4-en-1** : 8192x6144 / 2 = **4096x3072 (12,6 MP)** max en JPEG. La focale 5,89 mm (≈ 26 mm équiv.) confirme que c'est le capteur principal, pas l'ultra grand-angle.
+- `camera 1` (front) = le **16 MP frontal en binning Fusion4** : 2328x1748 = **4 MP**.
+- L'**ultra grand-angle 13 MP n'est pas exposé** aux apps tierces via Camera2 standard (device vraisemblablement caché au niveau HAL, accessible à l'app Crosscall via extensions vendor — d'où `PRIVATE_REPROCESSING` dans les capabilities).
+
+Pour lister tous les devices caméra au niveau HAL, y compris cachés :
+
+```sh
+adb shell dumpsys media.camera
+```
+
+Le 50 MP pleine résolution n'est pas atteignable en JPEG standard ; il faudrait passer par les extensions vendor (remosaic via `PRIVATE_REPROCESSING`).
+
 ### Caméra arrière (camera 0)
 - Capteur effectif **4096x3072 = 12,6 MP** (4:3), pixel 2,0 µm, dalle ~8,19x6,14 mm (~1/2,5"), f/1,89, focale 5,89 mm, focus mini ~10 cm.
-- Note : le marketing annonce 50 MP, mais le HAL Camera2 n'expose **aucun flux > 4096x3072** en JPEG → on travaille en 12,6 MP max. C'est une bonne nouvelle pour la perf (fusion HDR rapide sur Adreno 642L).
+- Note : le « 50 MP » marketing = IMX766 en pleine résolution, mais le HAL n'expose que le binning 4-en-1 (**aucun flux > 4096x3072** en JPEG) → on travaille en 12,6 MP max (voir « Correspondance capteurs physiques »). C'est une bonne nouvelle pour la perf (fusion HDR rapide sur Adreno 642L).
 - ISO 50–3200 (analog max 3200), exposition 96 µs – 343 ms, compensation AE ±12, flash présent, détection de 10 visages.
 - Régions AE/AF = 1/1 (tap-to-focus OK), AWB = 0 (auto uniquement).
 - Preview max **30 fps** (pas de plage 60 fps). `CONSTRAINED_HIGH_SPEED_VIDEO` présent → vidéo haute cadence à résolution réduite.
