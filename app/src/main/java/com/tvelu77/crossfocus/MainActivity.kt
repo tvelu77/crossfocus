@@ -134,11 +134,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun takePhoto() {
-        val file = newPhotoFile("single_")
-        if (captureToFile(file)) {
-            toast(getString(R.string.photo_saved, file.absolutePath))
-        } else {
-            toast(getString(R.string.photo_error, "capture failed"))
+        workerExecutor.execute {
+            val file = newPhotoFile("single_")
+            val ok = captureToFile(file)
+            runOnUiThread {
+                toast(if (ok) getString(R.string.photo_saved, file.absolutePath) else getString(R.string.photo_error, "capture failed"))
+            }
         }
     }
 
@@ -146,10 +147,12 @@ class MainActivity : AppCompatActivity() {
         if (burstRunning) return
         burstRunning = true
         workerExecutor.execute {
+            val t0 = System.nanoTime()
             var saved = 0
             for (i in 0 until count) {
                 if (captureToFile(newPhotoFile("burst_${i}_"))) saved++
             }
+            Log.d(TAG, "burstTotalMs=${(System.nanoTime() - t0) / 1_000_000} saved=$saved/$count")
             runOnUiThread {
                 burstRunning = false
                 toast(getString(R.string.burst_done, saved, count))
@@ -160,11 +163,12 @@ class MainActivity : AppCompatActivity() {
     private fun takeHdr() {
         val cam = camera ?: return
         workerExecutor.execute {
+            val t0 = System.nanoTime()
             val baseIndex = cam.cameraInfo.exposureState.exposureCompensationIndex
             val frames = mutableListOf<File>()
             for (ev in HDR_EXPOSURES) {
                 cam.cameraControl.setExposureCompensationIndex(ev)
-                Thread.sleep(200)
+                Thread.sleep(120)
                 val f = newPhotoFile("hdr_ev${ev}_")
                 if (captureToFile(f)) frames.add(f)
             }
@@ -173,6 +177,7 @@ class MainActivity : AppCompatActivity() {
             if (frames.size >= 2) {
                 HdrMerger.fuseToFile(frames, merged)
             }
+            Log.d(TAG, "hdrTotalMs=${(System.nanoTime() - t0) / 1_000_000} frames=${frames.size}")
             runOnUiThread {
                 toast(getString(R.string.hdr_done, merged.absolutePath))
             }
@@ -182,21 +187,24 @@ class MainActivity : AppCompatActivity() {
     private fun captureToFile(file: File): Boolean {
         val capture = imageCapture ?: return false
         val future = CompletableFuture<Boolean>()
+        val start = System.nanoTime()
         capture.takePicture(
             ImageCapture.OutputFileOptions.Builder(file).build(),
             ContextCompat.getMainExecutor(this),
             object : ImageCapture.OnImageSavedCallback {
                 override fun onImageSaved(output: ImageCapture.OutputFileResults) {
                     future.complete(true)
+                    Log.d(TAG, "captureLatencyMs=${(System.nanoTime() - start) / 1_000_000} file=${file.name}")
                 }
 
                 override fun onError(exception: ImageCaptureException) {
                     future.complete(false)
+                    Log.d(TAG, "captureError file=${file.name} err=${exception.message}")
                 }
             }
         )
         return try {
-            future.get(10, TimeUnit.SECONDS)
+            future.get(15, TimeUnit.SECONDS)
         } catch (e: Exception) {
             false
         }
