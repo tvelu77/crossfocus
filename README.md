@@ -1,5 +1,7 @@
 # CrossFocus
 
+[![CI](https://github.com/tvelu77/crossfocus/actions/workflows/ci.yml/badge.svg)](https://github.com/tvelu77/crossfocus/actions/workflows/ci.yml)
+
 Application caméra Android hautes performances pour le **Crosscall Stellar X5** : latence de déclenchement réduite (ZSL), aperçu fluide, mode rafale — objectif : être plus performante que l'app photo d'origine.
 
 La roadmap est pilotée par les [issues](https://github.com/tvelu77/crossfocus/issues) (vision : #1, règles agents : #2).
