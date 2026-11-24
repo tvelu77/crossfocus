@@ -4,12 +4,19 @@ import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
+import android.os.Environment
+import android.util.Log
+import android.view.MotionEvent
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
+import androidx.camera.core.FocusMeteringAction
+import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
+import androidx.camera.core.ImageProxy
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.content.ContextCompat
@@ -17,11 +24,19 @@ import com.tvelu77.crossfocus.databinding.ActivityMainBinding
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Locale
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
+    private var camera: Camera? = null
     private var imageCapture: ImageCapture? = null
+    private val workerExecutor = Executors.newSingleThreadExecutor()
+    private val analysisExecutor = Executors.newSingleThreadExecutor()
+    private var burstRunning = false
+    private var lastLumaLog = 0L
 
     private val cameraPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -38,14 +53,28 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
         binding.captureButton.setOnClickListener { takePhoto() }
+        binding.burstButton.setOnClickListener { takeBurst(BURST_COUNT) }
+        binding.hdrButton.setOnClickListener { takeHdr() }
         binding.auditButton.setOnClickListener {
             startActivity(Intent(this, CameraAuditActivity::class.java))
+        }
+        binding.previewView.setOnTouchListener { _, event ->
+            if (event.action == MotionEvent.ACTION_DOWN) {
+                focusOnTap(event.x, event.y)
+            }
+            true
         }
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
             startCamera()
         } else {
             cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
         }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        workerExecutor.shutdown()
+        analysisExecutor.shutdown()
     }
 
     private fun startCamera() {
@@ -57,43 +86,139 @@ class MainActivity : AppCompatActivity() {
             }
             imageCapture = ImageCapture.Builder()
                 .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
+                .setJpegQuality(90)
                 .build()
+            val analysis = ImageAnalysis.Builder()
+                .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_YUV_420_888)
+                .build()
+            analysis.setAnalyzer(analysisExecutor) { image -> analyzeLuma(image) }
             cameraProvider.unbindAll()
-            cameraProvider.bindToLifecycle(
+            camera = cameraProvider.bindToLifecycle(
                 this,
                 CameraSelector.DEFAULT_BACK_CAMERA,
                 preview,
-                imageCapture
+                imageCapture,
+                analysis
             )
         }, ContextCompat.getMainExecutor(this))
     }
 
+    private fun focusOnTap(x: Float, y: Float) {
+        val point = binding.previewView.meteringPointFactory.createPoint(x, y)
+        val action = FocusMeteringAction.Builder(point).build()
+        camera?.cameraControl?.startFocusAndMetering(action)
+    }
+
+    private fun analyzeLuma(image: ImageProxy) {
+        try {
+            val buffer = image.planes[0].buffer
+            val size = buffer.remaining()
+            var sum = 0L
+            var count = 0
+            var i = 0
+            while (i < size) {
+                sum += buffer.get(i).toInt() and 0xFF
+                count++
+                i += 64
+            }
+            val now = System.currentTimeMillis()
+            if (now - lastLumaLog > 500) {
+                lastLumaLog = now
+                val mean = if (count > 0) sum / count else 0
+                Log.d(TAG, "analysis ${image.width}x${image.height} meanLuma=$mean")
+            }
+        } finally {
+            image.close()
+        }
+    }
+
     private fun takePhoto() {
-        val capture = imageCapture ?: return
-        val outputDir = externalMediaDirs.firstOrNull() ?: filesDir
-        val photoFile = File(outputDir, photoFileName())
-        val outputOptions = ImageCapture.OutputFileOptions.Builder(photoFile).build()
+        val file = newPhotoFile("single_")
+        if (captureToFile(file)) {
+            toast(getString(R.string.photo_saved, file.absolutePath))
+        } else {
+            toast(getString(R.string.photo_error, "capture failed"))
+        }
+    }
+
+    private fun takeBurst(count: Int) {
+        if (burstRunning) return
+        burstRunning = true
+        workerExecutor.execute {
+            var saved = 0
+            for (i in 0 until count) {
+                if (captureToFile(newPhotoFile("burst_${i}_"))) saved++
+            }
+            runOnUiThread {
+                burstRunning = false
+                toast(getString(R.string.burst_done, saved, count))
+            }
+        }
+    }
+
+    private fun takeHdr() {
+        val cam = camera ?: return
+        workerExecutor.execute {
+            val baseIndex = cam.cameraInfo.exposureCompensationIndex
+            val frames = mutableListOf<File>()
+            for (ev in HDR_EXPOSURES) {
+                cam.cameraControl.setExposureCompensationIndex(ev)
+                Thread.sleep(200)
+                val f = newPhotoFile("hdr_ev${ev}_")
+                if (captureToFile(f)) frames.add(f)
+            }
+            cam.cameraControl.setExposureCompensationIndex(baseIndex)
+            val merged = newPhotoFile("hdr_merged_")
+            if (frames.size >= 2) {
+                HdrMerger.fuseToFile(frames, merged)
+            }
+            runOnUiThread {
+                toast(getString(R.string.hdr_done, merged.absolutePath))
+            }
+        }
+    }
+
+    private fun captureToFile(file: File): Boolean {
+        val capture = imageCapture ?: return false
+        val future = CompletableFuture<Boolean>()
         capture.takePicture(
-            outputOptions,
+            ImageCapture.OutputFileOptions.Builder(file).build(),
             ContextCompat.getMainExecutor(this),
             object : ImageCapture.OnImageSavedCallback {
                 override fun onImageSaved(output: ImageCapture.OutputFileResults) {
-                    toast(getString(R.string.photo_saved, photoFile.absolutePath))
+                    future.complete(true)
                 }
 
                 override fun onError(exception: ImageCaptureException) {
-                    toast(getString(R.string.photo_error, exception.message ?: ""))
+                    future.complete(false)
                 }
             }
         )
+        return try {
+            future.get(10, TimeUnit.SECONDS)
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    private fun newPhotoFile(prefix: String): File {
+        val dir = getExternalFilesDir(Environment.DIRECTORY_PICTURES) ?: filesDir
+        return File(dir, prefix + photoFileName())
     }
 
     private fun photoFileName(): String {
-        val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(System.currentTimeMillis())
+        val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss_SSS", Locale.US).format(System.currentTimeMillis())
         return "crossfocus_$timestamp.jpg"
     }
 
     private fun toast(message: String) {
         Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+    }
+
+    companion object {
+        private const val TAG = "CrossFocus"
+        private const val BURST_COUNT = 5
+        private val HDR_EXPOSURES = intArrayOf(-12, 0, 12)
     }
 }
