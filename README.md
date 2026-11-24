@@ -29,7 +29,16 @@ adb install app/build/outputs/apk/debug/app-debug.apk
 - `app/` — module unique : CameraX (`Preview` + `ImageCapture`), ViewBinding, caméra arrière
 - `CameraAuditActivity` — outil d'audit Camera2 embarqué : dump des `CameraCharacteristics` de toutes les caméras, exportable en `.txt` (issue #3). Sur le X5 : `adb pull <fichier>` depuis `Android/data/com.tvelu77.crossfocus/files/`
 
-## Interface (issue #19)
+## Interface (issues #19, #21)
+
+- Thème sombre propre (fond/statusBar/navigationBar noirs)
+- Galerie : bande horizontale des 20 dernières photos, tap → plein écran (`PhotoViewActivity`)
+- Slider zoom 1.0–8.0x (`setZoomRatio`) avec affichage « 1.0x »
+- Mode **Pro** : ISO 50–3200 + obturation 1/10357s–1/3s via `Camera2Interop` (`AE_MODE_OFF`, `SENSOR_SENSITIVITY`, `SENSOR_EXPOSURE_TIME`), EV ±2 via `setExposureCompensationIndex`
+- Preview plein écran + tap-to-focus
+- Barre du bas : sélecteur de mode (Simple / Rafale / HDR) + **obturateur rond** custom
+- Barre du haut : toggle **flash** (torch) + bouton Pro + bouton audit caméra
+
 
 - Preview plein écran + tap-to-focus
 - Barre du bas : sélecteur de mode (Simple / Rafale / HDR) + **obturateur rond** custom

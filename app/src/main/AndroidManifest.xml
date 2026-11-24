@@ -28,5 +28,9 @@
             android:name=".CameraAuditActivity"
             android:exported="false"
             android:label="@string/audit_title" />
+
+        <activity
+            android:name=".PhotoViewActivity"
+            android:exported="false" />
     </application>
 </manifest>
