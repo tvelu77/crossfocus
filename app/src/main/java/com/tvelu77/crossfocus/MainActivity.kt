@@ -37,6 +37,8 @@ class MainActivity : AppCompatActivity() {
     private val analysisExecutor = Executors.newSingleThreadExecutor()
     private var burstRunning = false
     private var lastLumaLog = 0L
+    private var isFlashOn = false
+    private var currentMode = MODE_SINGLE
 
     private val cameraPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -52,9 +54,21 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        binding.captureButton.setOnClickListener { takePhoto() }
-        binding.burstButton.setOnClickListener { takeBurst(BURST_COUNT) }
-        binding.hdrButton.setOnClickListener { takeHdr() }
+        binding.modeGroup.setOnCheckedChangeListener { _, checkedId ->
+            currentMode = when (checkedId) {
+                R.id.modeBurst -> MODE_BURST
+                R.id.modeHdr -> MODE_HDR
+                else -> MODE_SINGLE
+            }
+        }
+        binding.shutterButton.setOnClickListener {
+            when (currentMode) {
+                MODE_BURST -> takeBurst(BURST_COUNT)
+                MODE_HDR -> takeHdr()
+                else -> takePhoto()
+            }
+        }
+        binding.flashButton.setOnClickListener { toggleFlash() }
         binding.auditButton.setOnClickListener {
             startActivity(Intent(this, CameraAuditActivity::class.java))
         }
@@ -101,7 +115,21 @@ class MainActivity : AppCompatActivity() {
                 imageCapture,
                 analysis
             )
+            if (camera?.cameraInfo?.hasFlashUnit() != true) {
+                binding.flashButton.isEnabled = false
+            }
         }, ContextCompat.getMainExecutor(this))
+    }
+
+    private fun toggleFlash() {
+        val cam = camera ?: return
+        if (cam.cameraInfo.hasFlashUnit()) {
+            isFlashOn = !isFlashOn
+            cam.cameraControl.enableTorch(isFlashOn)
+            binding.flashButton.text = getString(if (isFlashOn) R.string.flash_on else R.string.flash_off)
+        } else {
+            toast(getString(R.string.flash_unavailable))
+        }
     }
 
     private fun focusOnTap(x: Float, y: Float) {
@@ -227,6 +255,9 @@ class MainActivity : AppCompatActivity() {
     companion object {
         private const val TAG = "CrossFocus"
         private const val BURST_COUNT = 5
+        private const val MODE_SINGLE = 0
+        private const val MODE_BURST = 1
+        private const val MODE_HDR = 2
         private val HDR_EXPOSURES = intArrayOf(-12, 0, 12)
     }
 }
