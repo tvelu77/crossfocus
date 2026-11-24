@@ -165,12 +165,12 @@ class MainActivity : AppCompatActivity() {
         workerExecutor.execute {
             val t0 = System.nanoTime()
             val baseIndex = cam.cameraInfo.exposureState.exposureCompensationIndex
-            val frames = mutableListOf<File>()
+            val frames = mutableListOf<Pair<File, Int>>()
             for (ev in HDR_EXPOSURES) {
                 cam.cameraControl.setExposureCompensationIndex(ev)
                 Thread.sleep(120)
                 val f = newPhotoFile("hdr_ev${ev}_")
-                if (captureToFile(f)) frames.add(f)
+                if (captureToFile(f)) frames.add(f to ev)
             }
             cam.cameraControl.setExposureCompensationIndex(baseIndex)
             val merged = newPhotoFile("hdr_merged_")
