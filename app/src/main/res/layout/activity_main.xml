@@ -10,39 +10,75 @@
         android:layout_height="match_parent" />
 
     <LinearLayout
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_gravity="bottom|center_horizontal"
-        android:layout_marginBottom="96dp"
-        android:orientation="horizontal">
+        android:layout_gravity="top"
+        android:orientation="horizontal"
+        android:padding="16dp">
 
         <Button
-            android:id="@+id/burstButton"
+            android:id="@+id/flashButton"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginEnd="16dp"
-            android:text="@string/burst_button" />
+            android:text="@string/flash_off" />
+
+        <View
+            android:layout_width="0dp"
+            android:layout_height="1dp"
+            android:layout_weight="1" />
 
         <Button
-            android:id="@+id/hdrButton"
+            android:id="@+id/auditButton"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="@string/hdr_button" />
+            android:text="@string/audit_button" />
     </LinearLayout>
 
-    <Button
-        android:id="@+id/captureButton"
+    <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|center_horizontal"
         android:layout_marginBottom="32dp"
-        android:text="@string/capture_button" />
+        android:gravity="center_horizontal"
+        android:orientation="vertical">
 
-    <Button
-        android:id="@+id/auditButton"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="top|end"
-        android:layout_margin="16dp"
-        android:text="@string/audit_button" />
+        <RadioGroup
+            android:id="@+id/modeGroup"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <RadioButton
+                android:id="@+id/modeSingle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:checked="true"
+                android:text="@string/mode_single"
+                android:textColor="@android:color/white" />
+
+            <RadioButton
+                android:id="@+id/modeBurst"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:text="@string/mode_burst"
+                android:textColor="@android:color/white" />
+
+            <RadioButton
+                android:id="@+id/modeHdr"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:text="@string/mode_hdr"
+                android:textColor="@android:color/white" />
+        </RadioGroup>
+
+        <ImageButton
+            android:id="@+id/shutterButton"
+            android:layout_width="72dp"
+            android:layout_height="72dp"
+            android:layout_marginTop="16dp"
+            android:background="@drawable/shutter_button"
+            android:contentDescription="@string/capture_button" />
+    </LinearLayout>
 </FrameLayout>
