@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">CrossFocus</string>
+    <string name="capture_button">Capturer</string>
+    <string name="camera_permission_denied">Permission caméra refusée</string>
+    <string name="photo_saved">Photo enregistrée : %1$s</string>
+    <string name="photo_error">Erreur de capture : %1$s</string>
+</resources>
