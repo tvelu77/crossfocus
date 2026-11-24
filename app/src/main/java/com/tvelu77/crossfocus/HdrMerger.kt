@@ -9,6 +9,9 @@ import kotlin.math.pow
 
 object HdrMerger {
 
+    private const val MID_BLEND = 0.25
+    private const val SATURATION = 0.85
+
     fun fuseToFile(frames: List<Pair<File, Int>>, output: File, maxDim: Int = 2048) {
         val bitmaps = frames.map { decodeScaled(it.first, maxDim) }
         val width = bitmaps.minOf { it.width }
@@ -19,6 +22,7 @@ object HdrMerger {
             }
         }
         val gains = frames.map { (_, evIndex) -> 2.0.pow(evIndex / 6.0) }
+        val midIndex = src.size / 2
         val sigma2 = 32.0 * 32.0
         val outPixels = IntArray(width * height)
         for (i in 0 until width * height) {
@@ -39,9 +43,17 @@ object HdrMerger {
                 bSum += w * b
             }
             val inv = if (wSum > 0) 1.0 / wSum else 0.0
-            val r = (rSum * inv).toInt().coerceIn(0, 255)
-            val g = (gSum * inv).toInt().coerceIn(0, 255)
-            val b = (bSum * inv).toInt().coerceIn(0, 255)
+            val mid = src[midIndex][i]
+            val mr = (mid shr 16) and 0xFF
+            val mg = (mid shr 8) and 0xFF
+            val mb = mid and 0xFF
+            val fr = rSum * inv * (1.0 - MID_BLEND) + mr * MID_BLEND
+            val fg = gSum * inv * (1.0 - MID_BLEND) + mg * MID_BLEND
+            val fb = bSum * inv * (1.0 - MID_BLEND) + mb * MID_BLEND
+            val luma = 0.299 * fr + 0.587 * fg + 0.114 * fb
+            val r = (luma + SATURATION * (fr - luma)).toInt().coerceIn(0, 255)
+            val g = (luma + SATURATION * (fg - luma)).toInt().coerceIn(0, 255)
+            val b = (luma + SATURATION * (fb - luma)).toInt().coerceIn(0, 255)
             outPixels[i] = (0xFF shl 24) or (r shl 16) or (g shl 8) or b
         }
         val out = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
