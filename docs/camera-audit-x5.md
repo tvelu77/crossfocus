@@ -63,7 +63,7 @@ YUV_420_888 sizes (16): max=2328x1748
 - `BURST_CAPTURE` : **rafale native**.
 - `RAW` : capture DNG possible.
 - `READ_SENSOR_SETTINGS` + `MANUAL_POST_PROCESSING` : métadonnées complètes.
-- ZSL (`CONTROL_ENABLE_ZSL`) non listé comme capability mais quasi certain sur LEVEL_3 + BURST_CAPTURE → à valider à l'exécution (cible : latence au clic < 200 ms).
+- ZSL : la clé `CONTROL_ENABLE_ZSL` existe, mais **`camera.disable_zsl_mode=true`** (voir section « Pourquoi seulement 2 caméras ? ») → ZSL désactivé au niveau HAL, pas de zero-shutter-lag. On vise la latence via `CAPTURE_MODE_MINIMIZE_LATENCY` + pipeline rapide, et on mesure la latence réelle (issue #6).
 
 ### Correspondance capteurs physiques ↔ IDs Camera2
 
@@ -83,6 +83,18 @@ adb shell dumpsys media.camera
 ```
 
 Le 50 MP pleine résolution n'est pas atteignable en JPEG standard ; il faudrait passer par les extensions vendor (remosaic via `PRIVATE_REPROCESSING`).
+
+### Pourquoi seulement 2 caméras exposées ? (issue #10)
+
+`adb shell dumpsys media.camera` montre **3 devices au niveau HAL** :
+- device 0 = BACK, focale 5,89 mm → IMX766 (exposé comme `camera 0`)
+- device 1 = FRONT, focale 3,26 mm → 16 MP binné (exposé comme `camera 1`)
+- device 2 = BACK, focale **2,13 mm**, pixel array **4224x3136 (13,3 MP)** → c'est l'**ultra grand-angle 13 MP** : présent au niveau HAL mais **caché des apps tierces**
+
+Cause racine (`adb shell getprop`) :
+- `[camera.aux.packagelist]: [com.android.engtest,com.hmd.sarsensor,fr.sogelink.mobile.geosnap,com.crosscall]` → seules les apps de cette liste voient les caméras « aux » (le device 2). `com.tvelu77.crossfocus` n'y figure pas → `cameraIdList` ne renvoie que 2 IDs. Modifier cette propriété exige un accès root à `/vendor` : **l'ultra grand-angle n'est pas utilisable depuis une app tierce distribuable**.
+- `[camera.disable_zsl_mode]: [true]` → **ZSL désactivé au niveau HAL** sur ce modèle (`CONTROL_ENABLE_ZSL` ne produira pas de zero-shutter-lag). Conséquence pour l'issue #5 : viser la latence au clic via `CAPTURE_MODE_MINIMIZE_LATENCY` + capture rapide, puis mesurer la latence réelle (issue #6).
+- `[persist.sys.is_xcam]: [true]` et `[ro.com.google.lens.oem_camera_package]: [com.crosscall.xcam]` → l'app OEM Crosscall (xcam) détient les extensions vendor (`PRIVATE_REPROCESSING`, remosaic 50 MP). Le 50 MP pleine résolution n'est pas atteignable en JPEG standard (max 4096x3072) ni depuis une app tierce.
 
 ### Caméra arrière (camera 0)
 - Capteur effectif **4096x3072 = 12,6 MP** (4:3), pixel 2,0 µm, dalle ~8,19x6,14 mm (~1/2,5"), f/1,89, focale 5,89 mm, focus mini ~10 cm.
@@ -104,7 +116,7 @@ Le 50 MP pleine résolution n'est pas atteignable en JPEG standard ; il faudrait
 
 | Feature | Décision |
 |---|---|
-| ZSL / latence au clic | oui, viser < 200 ms (`CONTROL_ENABLE_ZSL` + preview actif) |
+| Latence au clic | ZSL désactivé (`camera.disable_zsl_mode=true`) → `CAPTURE_MODE_MINIMIZE_LATENCY` + pipeline rapide ; latence réelle mesurée via #6, cible à ajuster après mesure |
 | Rafale | oui, `BURST_CAPTURE`, cadence max mesurée sur appareil |
 | RAW (DNG) | oui, option Pro |
 | Contrôles manuels | oui, ISO 50–3200, expo 96 µs–343 ms, focus tap |
