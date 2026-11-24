@@ -9,6 +9,27 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|center_horizontal"
+        android:layout_marginBottom="96dp"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/burstButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="16dp"
+            android:text="@string/burst_button" />
+
+        <Button
+            android:id="@+id/hdrButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/hdr_button" />
+    </LinearLayout>
+
     <Button
         android:id="@+id/captureButton"
         android:layout_width="wrap_content"
