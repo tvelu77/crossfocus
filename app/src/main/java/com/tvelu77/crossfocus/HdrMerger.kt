@@ -5,11 +5,12 @@ import android.graphics.BitmapFactory
 import java.io.File
 import java.io.FileOutputStream
 import kotlin.math.exp
+import kotlin.math.pow
 
 object HdrMerger {
 
-    fun fuseToFile(files: List<File>, output: File, maxDim: Int = 2048) {
-        val bitmaps = files.map { decodeScaled(it, maxDim) }
+    fun fuseToFile(frames: List<Pair<File, Int>>, output: File, maxDim: Int = 2048) {
+        val bitmaps = frames.map { decodeScaled(it.first, maxDim) }
         val width = bitmaps.minOf { it.width }
         val height = bitmaps.minOf { it.height }
         val src = bitmaps.map { bitmap ->
@@ -17,25 +18,30 @@ object HdrMerger {
                 bitmap.getPixels(arr, 0, width, 0, 0, width, height)
             }
         }
-        val midIndex = bitmaps.size / 2
+        val gains = frames.map { (_, evIndex) -> 2.0.pow(evIndex / 6.0) }
         val sigma2 = 32.0 * 32.0
         val outPixels = IntArray(width * height)
         for (i in 0 until width * height) {
             var wSum = 0.0
-            var lSum = 0.0
-            for (b in src.indices) {
-                val luma = luma(src[b][i])
+            var rSum = 0.0
+            var gSum = 0.0
+            var bSum = 0.0
+            for (k in src.indices) {
+                val p = src[k][i]
+                val r = ((p shr 16) and 0xFF) / gains[k]
+                val g = ((p shr 8) and 0xFF) / gains[k]
+                val b = (p and 0xFF) / gains[k]
+                val luma = 0.299 * r + 0.587 * g + 0.114 * b
                 val w = exp(-((luma - 128.0) * (luma - 128.0)) / (2.0 * sigma2))
                 wSum += w
-                lSum += w * luma
+                rSum += w * r
+                gSum += w * g
+                bSum += w * b
             }
-            val fused = if (wSum > 0) lSum / wSum else 128.0
-            val mid = src[midIndex][i]
-            val midLuma = luma(mid).coerceAtLeast(1.0)
-            val scale = fused / midLuma
-            val r = ((mid shr 16 and 0xFF) * scale).toInt().coerceIn(0, 255)
-            val g = ((mid shr 8 and 0xFF) * scale).toInt().coerceIn(0, 255)
-            val b = ((mid and 0xFF) * scale).toInt().coerceIn(0, 255)
+            val inv = if (wSum > 0) 1.0 / wSum else 0.0
+            val r = (rSum * inv).toInt().coerceIn(0, 255)
+            val g = (gSum * inv).toInt().coerceIn(0, 255)
+            val b = (bSum * inv).toInt().coerceIn(0, 255)
             outPixels[i] = (0xFF shl 24) or (r shl 16) or (g shl 8) or b
         }
         val out = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
@@ -45,13 +51,6 @@ object HdrMerger {
         }
         bitmaps.forEach { it.recycle() }
         out.recycle()
-    }
-
-    private fun luma(pixel: Int): Double {
-        val r = (pixel shr 16) and 0xFF
-        val g = (pixel shr 8) and 0xFF
-        val b = pixel and 0xFF
-        return 0.299 * r + 0.587 * g + 0.114 * b
     }
 
     private fun decodeScaled(file: File, maxDim: Int): Bitmap {
