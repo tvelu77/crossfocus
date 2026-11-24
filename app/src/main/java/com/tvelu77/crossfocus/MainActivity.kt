@@ -1,6 +1,7 @@
 package com.tvelu77.crossfocus
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.widget.Toast
@@ -37,6 +38,9 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
         binding.captureButton.setOnClickListener { takePhoto() }
+        binding.auditButton.setOnClickListener {
+            startActivity(Intent(this, CameraAuditActivity::class.java))
+        }
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
             startCamera()
         } else {

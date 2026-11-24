@@ -5,4 +5,8 @@
     <string name="camera_permission_denied">Permission caméra refusée</string>
     <string name="photo_saved">Photo enregistrée : %1$s</string>
     <string name="photo_error">Erreur de capture : %1$s</string>
+    <string name="audit_button">Audit caméra</string>
+    <string name="audit_title">Audit caméra</string>
+    <string name="audit_export">Exporter le rapport</string>
+    <string name="audit_exported">Rapport exporté : %1$s</string>
 </resources>

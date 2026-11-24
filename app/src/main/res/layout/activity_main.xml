@@ -16,4 +16,12 @@
         android:layout_gravity="bottom|center_horizontal"
         android:layout_marginBottom="32dp"
         android:text="@string/capture_button" />
+
+    <Button
+        android:id="@+id/auditButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|end"
+        android:layout_margin="16dp"
+        android:text="@string/audit_button" />
 </FrameLayout>
