@@ -103,7 +103,6 @@ class CameraAuditActivity : AppCompatActivity() {
         CameraCharacteristics.REQUEST_AVAILABLE_CAPABILITIES_YUV_REPROCESSING -> "YUV_REPROCESSING"
         CameraCharacteristics.REQUEST_AVAILABLE_CAPABILITIES_DEPTH_OUTPUT -> "DEPTH_OUTPUT"
         CameraCharacteristics.REQUEST_AVAILABLE_CAPABILITIES_CONSTRAINED_HIGH_SPEED_VIDEO -> "CONSTRAINED_HIGH_SPEED_VIDEO"
-        CameraCharacteristics.REQUEST_AVAILABLE_CAPABILITIES_BLACK_LEVEL_LOCK -> "BLACK_LEVEL_LOCK"
         else -> "cap_$cap"
     }
 }
