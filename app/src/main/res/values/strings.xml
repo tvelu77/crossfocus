@@ -17,4 +17,10 @@
     <string name="flash_on">Flash ON</string>
     <string name="flash_off">Flash OFF</string>
     <string name="flash_unavailable">Flash indisponible</string>
+    <string name="pro_mode">Pro</string>
+    <string name="iso_label">ISO %1$d</string>
+    <string name="shutter_label">1/%1$d s</string>
+    <string name="ev_label">EV %1$d</string>
+    <string name="zoom_default">1.0x</string>
+    <string name="photo_view_desc">Photo plein écran</string>
 </resources>
